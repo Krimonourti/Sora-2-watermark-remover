@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sora 2 Watermark Remover</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Sora 2 Cleaner</h1>
+      <p class="description">
+        Upload a Sora&nbsp;2 generated video with the stock watermark. We will detect the watermark
+        region using template matching and reconstruct the underlying pixels via AI-powered
+        inpainting to return a clean version of the clip.
+      </p>
+      <form id="upload-form">
+        <input type="file" name="file" accept="video/*" required />
+        <button type="submit">Remove Watermark</button>
+        <div class="status" id="status"></div>
+      </form>
+      <footer>Processing happens entirely on this server&mdash;no files are kept.</footer>
+    </div>
+    <script>
+      const form = document.getElementById('upload-form');
+      const statusEl = document.getElementById('status');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const fileInput = form.querySelector('input[type="file"]');
+        if (!fileInput.files.length) {
+          statusEl.textContent = 'Select a video first.';
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        statusEl.textContent = 'Processing… this may take a minute for longer clips.';
+
+        try {
+          const response = await fetch('/process', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Failed to remove watermark');
+          }
+
+          const blob = await response.blob();
+          const downloadUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement('a');
+          anchor.href = downloadUrl;
+          anchor.download = fileInput.files[0].name.replace(/\.[^.]+$/, '') + '_clean.mp4';
+          anchor.click();
+          URL.revokeObjectURL(downloadUrl);
+          statusEl.textContent = 'Watermark removed! Your download should start automatically.';
+        } catch (error) {
+          console.error(error);
+          statusEl.textContent = error.message || 'Unexpected error';
+        }
+      });
+    </script>
+  </body>
+</html>
